@@ -1,0 +1,56 @@
+name: Android APK Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Create Native Directories
+        run: npx expo prebuild -p android --clean
+
+      - name: Cache Gradle Packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build Android APK
+        working-directory: ./android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chef-Assistant-App-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
